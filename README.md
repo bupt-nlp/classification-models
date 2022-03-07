@@ -1,2 +1,8 @@
-# classification-models
-contains the different classification models
+# text classification models
+
+Out of box classification models 
+
+
+## Model List
+
+* Pretrained Model + Linear Model

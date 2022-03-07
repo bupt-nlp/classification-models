@@ -1,0 +1,3 @@
+paddlepaddle==2.2.0
+typed-argument-parser
+numpy
