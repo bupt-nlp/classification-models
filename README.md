@@ -12,13 +12,31 @@ To achieve the above goal, you should keep you corpus is consist with the follow
 ...
 ```
 
+**We are welcome to Post issue for new models, or pr to contribute.**
+
 ## Model List
 
-* [Pretrained Model + Linear Model](./src/models/pretrained.py)
-* [CNN](./src/models/cnn.py)
-* [RNN](./src/models/rnn.py)
-* []()
+- [x] [Pretrained Model + Linear Model](./src/models/pretrained.py)
+- [ ] [CNN](./src/models/cnn.py)
+- [ ] [RNN](./src/models/rnn.py)
 
-## Papers
+## Corpus
 
-* 
+- [ ] ATIS
+- [ ] SNIPS
+- [ ] CLINC150
+- [ ] AGNews 
+
+## Experiments
+
+- [ ] TODO： add experiment metrics at here
+
+## Creators
+
+- [@wj-Mcat](https://github.com/wj-Mcat) - Jingjing WU (吴京京)
+
+## Copyright & License
+
+- Code & Docs © 2022 wj-Mcat
+- Code released under the Apache-2.0 License
+- Docs released under Creative Commons

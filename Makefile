@@ -7,7 +7,7 @@ IGNORE_PEP=E203,E221,E241,E272,E501,F811,C0301,C0114
 pylint:
 	pylint \
 		--load-plugins pylint_quotes \
-		--disable=W0511,R0801,cyclic-import,C0301,C0114,C4001 \
+		--disable=W0511,R0801,cyclic-import,C0301,C0303,C0114,C4001 \
 		$(SOURCE_GLOB)
 
 .PHONY: pycodestyle
@@ -25,3 +25,10 @@ lint: pylint pycodestyle
 install:
 	pip install -r requirements.txt
 	pip install -r requirements-dev.txt
+
+.PHONY: pytest
+pytest:
+	pytest src/ tests/
+
+.PHONY: test
+test: lint pytest
