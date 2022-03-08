@@ -19,6 +19,6 @@ class Config(Tap):
     logging_steps: int = 10             # The interval steps to logging.
     init_from_ckpt: str = None          # The path of checkpoint to be loaded.
     seed: int = 1000                    # random seed for initialization
-    device: str = 'cpu'     # Select which device to train model, defaults to gpu.
+    device: str = 'gpu'     # Select which device to train model, defaults to gpu.
     use_amp: bool = False               # Enable mixed precision training.
     scale_loss: float = 2**15           # The value of scale_loss for fp16.

@@ -1,3 +1,4 @@
+
 SOURCE_GLOB=$(wildcard src/**/*.py src/*.py)
 
 IGNORE_PEP=E203,E221,E241,E272,E501,F811,C0301,C0114
@@ -19,3 +20,8 @@ pycodestyle:
 
 .PHONY: lint
 lint: pylint pycodestyle
+
+.PHONY: install
+install:
+	pip install -r requirements.txt
+	pip install -r requirements-dev.txt

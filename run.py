@@ -26,12 +26,10 @@ from paddlenlp.data import Stack, Tuple, Pad
 from paddlenlp.datasets import load_dataset
 from paddlenlp.transformers import LinearDecayWithWarmup
 from paddlenlp.transformers.tokenizer_utils import PretrainedTokenizer
-from loguru import logger``
+from loguru import logger
 from src.processors import convert_example, create_dataloader
 from src.config import Config
-
-# yapf: disable
-# yapf: enable
+from tqdm import tqdm
 
 
 def set_seed(seed):
@@ -82,16 +80,27 @@ def train(
 ):
     logger.info(f'training epoch<{epoch}> ...')
     global_step = epoch * len(train_dataloader)
+    bar = tqdm(total=len(train_dataloader))
 
     for step, batch in enumerate(train_dataloader, start=1):
         input_ids, token_type_ids, labels = batch
+        
+        bar_info = ''
         with paddle.amp.auto_cast(
                 config.use_amp,
                 custom_white_list=["layer_norm", "softmax", "gelu"], ):
             logits = model(input_ids, token_type_ids)
             loss = criterion(logits, labels)
+            bar.update()
+
+            bar_info = f"loss: {loss.detach().cpu().numpy().item()}"
+
         probs = F.softmax(logits, axis=1)
         correct = metric.compute(probs, labels)
+
+        bar_info += f'acc: {paddle.mean(correct).detach().cpu().numpy().item()}'
+        bar.set_description(bar_info)
+
         metric.update(correct)
         metric.accumulate()
 
@@ -190,13 +199,11 @@ def do_train():
     if config.use_amp:
         scaler = paddle.amp.GradScaler(init_loss_scaling=config.scale_loss)
     
-    global_step = 0
-    total_train_time = 0
     for epoch in range(1, config.epochs + 1):
         train(
             epoch, model, tokenizer, criterion, optimizer, lr_scheduler, metric, train_data_loader, dev_data_loader, config, scaler
         ) 
-    print("Speed: %.2f steps/s" % (global_step / total_train_time))
+
 
 
 if __name__ == "__main__":
