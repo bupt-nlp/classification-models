@@ -6,11 +6,8 @@ import paddle
 from paddle.io import Dataset
 from paddlenlp.transformers.tokenizer_utils import PretrainedTokenizer
 
-from src.data import InputExample
-from src.config import TransFn, CollateFn
 
-
-def convert_example(example: InputExample,
+def convert_example(example: dict,
                     tokenizer: PretrainedTokenizer,
                     max_seq_length: int = 512,
                     mode: str = 'train'
@@ -23,9 +20,14 @@ def convert_example(example: InputExample,
         max_seq_length (int, optional): max sequence length. Defaults to 512.
         mode (str, optional): the mode of model. Defaults to 'train'.
     """
+    if 'text_b' in example:
+        text, text_pair = example['text_a'], example['text_b']
+    else:
+        text, text_pair = example['text'], None 
+
     encoded_inputs = tokenizer(
-        text=example.text,
-        text_pair=example.text_pair or None,
+        text=text,
+        text_pair=text_pair,
         max_seq_len=max_seq_length
     )
     input_ids = encoded_inputs["input_ids"]
@@ -40,12 +42,11 @@ def convert_example(example: InputExample,
 def create_dataloader(dataset: Dataset,
                       mode: str = 'train',
                       batch_size: int = 16,
-                      collate_fn: Optional[CollateFn] = None,
-                      trans_fn: Optional[TransFn] = None):
+                      collate_fn = None,
+                      trans_fn = None):
     if trans_fn:
         dataset = dataset.map(trans_fn)
 
-    shuffle = mode == 'train'
     if mode == 'train':
         batch_sampler = paddle.io.DistributedBatchSampler(
             dataset, batch_size=batch_size, shuffle=True)

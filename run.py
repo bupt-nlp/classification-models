@@ -10,7 +10,6 @@ import random
 import time
 import distutils.util
 from typing import Callable, List, Optional
-
 import numpy as np
 import paddle
 import paddle.nn.functional as F
@@ -27,8 +26,7 @@ from paddlenlp.data import Stack, Tuple, Pad
 from paddlenlp.datasets import load_dataset
 from paddlenlp.transformers import LinearDecayWithWarmup
 from paddlenlp.transformers.tokenizer_utils import PretrainedTokenizer
-from data import InputExample
-
+from loguru import logger``
 from src.processors import convert_example, create_dataloader
 from src.config import Config
 
@@ -69,7 +67,6 @@ def evaluate(model, criterion, metric, data_loader):
     model.train()
     metric.reset()
 
-
 def train(
     epoch: int,
     model: Layer,
@@ -83,6 +80,7 @@ def train(
     config: Config,
     scaler: Optional[AmpScaler] = None
 ):
+    logger.info(f'training epoch<{epoch}> ...')
     global_step = epoch * len(train_dataloader)
 
     for step, batch in enumerate(train_dataloader, start=1):
@@ -95,7 +93,7 @@ def train(
         probs = F.softmax(logits, axis=1)
         correct = metric.compute(probs, labels)
         metric.update(correct)
-        acc = metric.accumulate()
+        metric.accumulate()
 
         if scaler is not None:
             scaler.scale(loss).backward()
@@ -141,8 +139,8 @@ def do_train():
     trans_func = partial(
         convert_example,
         tokenizer=tokenizer,
-        max_seq_length=config.max_seq_length,
-        is_pair=config.dataset == "xnli_cn")
+        max_seq_length=config.max_seq_length
+        )
     collate_fn = lambda samples, fn=Tuple(
         Pad(axis=0, pad_val=tokenizer.pad_token_id),  # input
         Pad(axis=0, pad_val=tokenizer.pad_token_type_id),  # segment
@@ -152,13 +150,13 @@ def do_train():
         train_ds,
         mode='train',
         batch_size=config.batch_size,
-        batchify_fn=collate_fn,
+        collate_fn=collate_fn,
         trans_fn=trans_func)
     dev_data_loader = create_dataloader(
         dev_ds,
         mode='dev',
         batch_size=config.batch_size,
-        batchify_fn=collate_fn,
+        collate_fn=collate_fn,
         trans_fn=trans_func
     )
 
@@ -188,14 +186,16 @@ def do_train():
         
     criterion = paddle.nn.loss.CrossEntropyLoss()
     metric = paddle.metric.Accuracy()
+    scaler = None
     if config.use_amp:
         scaler = paddle.amp.GradScaler(init_loss_scaling=config.scale_loss)
     
     global_step = 0
-    tic_train = time.time()
     total_train_time = 0
     for epoch in range(1, config.epochs + 1):
-        pass
+        train(
+            epoch, model, tokenizer, criterion, optimizer, lr_scheduler, metric, train_data_loader, dev_data_loader, config, scaler
+        ) 
     print("Speed: %.2f steps/s" % (global_step / total_train_time))
 
 
