@@ -31,6 +31,13 @@ To achieve the above goal, you should keep you corpus is consist with the follow
 
 - [ ] TODO： add experiment metrics at here
 
+
+## TODOS
+
+- [ ] full unit test for codes
+- [ ] fix linting issue
+- [ ] add tensorboard-style tool
+
 ## Creators
 
 - [@wj-Mcat](https://github.com/wj-Mcat) - Jingjing WU (吴京京)

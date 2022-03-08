@@ -4,7 +4,7 @@ from tap import Tap
 class Config(Tap):
     """Configuration for Training"""
     save_dir: str = './checkpoint'      # The output directory where the model checkpoints will be written.
-    dataset: str = 'chnsenticorp'       # Dataset for classfication tasks.
+    task: str = 'clinc150'       # Dataset for classfication tasks.
     max_seq_length: int = 128           # The maximum total input sequence length after tokenization. Sequences longer than this will be truncated, sequences shorter will be padded.
     batch_size: int = 32                # Batch size per GPU/CPU for training.
     learning_rate: float = 5e-5         # The initial learning rate for Adam.

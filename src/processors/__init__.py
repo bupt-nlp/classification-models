@@ -1,16 +1,20 @@
 """Base Data Processors"""
 from __future__ import annotations
+from typing import Dict
 
 import numpy as np
 import paddle
 from paddle.io import Dataset
 from paddlenlp.transformers.tokenizer_utils import PretrainedTokenizer
+from .clinc150 import Clinc150DataProcessor
+from .base_processor import ChnsenticorpDataProcessor, DataProcessor
 
 
 def convert_example(example: dict,
                     tokenizer: PretrainedTokenizer,
                     max_seq_length: int = 512,
-                    mode: str = 'train'
+                    mode: str = 'train',
+                    label2idx: Dict[str, int] = {}
                     ):
     """convert single example to input related data
 
@@ -29,8 +33,9 @@ def convert_example(example: dict,
     token_type_ids = encoded_inputs["token_type_ids"]
     if mode == 'test':
         return input_ids, token_type_ids
-
-    label = np.array([example["label"]], dtype="int64")
+    
+    label_id = label2idx[example['label']]
+    label = np.array([label_id], dtype="int64")
     return input_ids, token_type_ids, label
 
 
@@ -64,3 +69,9 @@ def create_dataloader(dataset: Dataset,
         collate_fn=collate_fn,
         return_list=True
     )
+
+
+processors_map: Dict[str, DataProcessor] = {
+    'clinc150': Clinc150DataProcessor,
+    'Chnsenticorp': ChnsenticorpDataProcessor
+}

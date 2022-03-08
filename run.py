@@ -23,14 +23,14 @@ from paddle.amp.grad_scaler import AmpScaler
 
 import paddlenlp as ppnlp
 from paddlenlp.data import Stack, Tuple, Pad
-from paddlenlp.datasets import load_dataset
+from paddlenlp.datasets import load_dataset, MapDataset
 from paddlenlp.transformers import LinearDecayWithWarmup
 from paddlenlp.transformers.tokenizer_utils import PretrainedTokenizer
 from loguru import logger
-from src.processors import convert_example, create_dataloader
+from src.processors import convert_example, create_dataloader, processors_map
+from src.processors.base_processor import DataProcessor
 from src.config import Config
 from tqdm import tqdm
-
 
 def set_seed(seed):
     """sets random seed"""
@@ -50,6 +50,7 @@ def evaluate(model, criterion, metric, data_loader):
         criterion(obj:`paddle.nn.Layer`): It can compute the loss.
         metric(obj:`paddle.metric.Metric`): The evaluation metric.
     """
+    logger.info('evaluation on dataset ...')
     model.eval()
     metric.reset()
     losses = []
@@ -117,13 +118,13 @@ def train(
         if global_step % config.valid_steps == 0:
             evaluate(model, criterion, metric, dev_dataloader)
 
-        if global_step % config.save_steps == 0:
-            save_dir = os.path.join(
-                config.save_dir, "model_%d" % global_step)
-            if not os.path.exists(save_dir):
-                os.makedirs(save_dir)
-            model._layers.save_pretrained(save_dir)
-            tokenizer.save_pretrained(save_dir)
+        # if global_step % config.save_steps == 0:
+        #     save_dir = os.path.join(
+        #         config.save_dir, "model_%d" % global_step)
+        #     if not os.path.exists(save_dir):
+        #         os.makedirs(save_dir)
+        #     model._layers.save_pretrained(save_dir)
+        #     tokenizer.save_pretrained(save_dir)
 
         global_step += 1
 
@@ -134,13 +135,14 @@ def do_train():
     paddle.set_device(config.device)
     if paddle.distributed.get_world_size() > 1:
         paddle.distributed.init_parallel_env()
-
+        
     set_seed(config.seed)
 
-    train_ds, dev_ds, test_ds = load_dataset(
-        config.dataset, splits=["train", "dev", "test"]
-    )
+    processor: DataProcessor = processors_map[config.task]()
+    train_ds: MapDataset = processor.get_train_dataset()
+    label2idx = {label:index for index, label in enumerate(train_ds.label_list)}
 
+    dev_ds = processor.get_dev_dataset()
     model = ppnlp.transformers.ErnieForSequenceClassification.from_pretrained(
         'ernie-1.0', num_classes=len(train_ds.label_list))
     tokenizer = ppnlp.transformers.ErnieTokenizer.from_pretrained('ernie-1.0')
@@ -148,7 +150,8 @@ def do_train():
     trans_func = partial(
         convert_example,
         tokenizer=tokenizer,
-        max_seq_length=config.max_seq_length
+        max_seq_length=config.max_seq_length,
+        label2idx=label2idx
         )
     collate_fn = lambda samples, fn=Tuple(
         Pad(axis=0, pad_val=tokenizer.pad_token_id),  # input
@@ -202,9 +205,7 @@ def do_train():
     for epoch in range(1, config.epochs + 1):
         train(
             epoch, model, tokenizer, criterion, optimizer, lr_scheduler, metric, train_data_loader, dev_data_loader, config, scaler
-        ) 
-
-
+        )
 
 if __name__ == "__main__":
     do_train()
