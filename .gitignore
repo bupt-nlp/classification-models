@@ -131,3 +131,4 @@ paddlepaddle
 paddlenlp
 .vscode/
 notebooks/
+checkpoint/
