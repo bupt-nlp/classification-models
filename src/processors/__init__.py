@@ -27,7 +27,8 @@ def convert_example(example: dict,
     encoded_inputs = tokenizer(
         text=example.get('text'),
         text_pair=example.get('text_pair', None),
-        max_seq_len=max_seq_length
+        max_seq_len=max_seq_length,
+        pad_to_max_seq_len=True
     )
     input_ids = encoded_inputs["input_ids"]
     token_type_ids = encoded_inputs["token_type_ids"]

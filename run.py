@@ -31,6 +31,10 @@ from src.processors import convert_example, create_dataloader, processors_map
 from src.processors.base_processor import DataProcessor
 from src.config import Config
 from tqdm import tqdm
+from src.models.cnn import CNNConfig, CNNClassifier
+from src.models.simple_classifier import SimpleConfig, SimpleClassifier
+from src.models.rnn import RNNConfig, RNNClassifier
+
 
 def set_seed(seed):
     """sets random seed"""
@@ -130,7 +134,7 @@ def train(
 
 
 def do_train():
-    config: Config = Config().parse_args(known_only=True)
+    config: SimpleConfig = SimpleConfig().parse_args(known_only=True)
 
     paddle.set_device(config.device)
     if paddle.distributed.get_world_size() > 1:
@@ -140,19 +144,18 @@ def do_train():
 
     processor: DataProcessor = processors_map[config.task]()
     train_ds: MapDataset = processor.get_train_dataset()
+    config.num_labels = len(train_ds.label_list)
     label2idx = {label:index for index, label in enumerate(train_ds.label_list)}
 
     dev_ds = processor.get_dev_dataset()
-    model = ppnlp.transformers.ErnieForSequenceClassification.from_pretrained(
-        'ernie-1.0', num_classes=len(train_ds.label_list))
-    tokenizer = ppnlp.transformers.ErnieTokenizer.from_pretrained('ernie-1.0')
+    tokenizer = ppnlp.transformers.ErnieTokenizer.from_pretrained(config.pretrained_model)
 
     trans_func = partial(
         convert_example,
         tokenizer=tokenizer,
         max_seq_length=config.max_seq_length,
         label2idx=label2idx
-        )
+    )
     collate_fn = lambda samples, fn=Tuple(
         Pad(axis=0, pad_val=tokenizer.pad_token_id),  # input
         Pad(axis=0, pad_val=tokenizer.pad_token_type_id),  # segment
@@ -171,6 +174,7 @@ def do_train():
         collate_fn=collate_fn,
         trans_fn=trans_func
     )
+    model = SimpleClassifier(config)
 
     if config.init_from_ckpt and os.path.isfile(config.init_from_ckpt):
         state_dict = paddle.load(config.init_from_ckpt)
@@ -206,6 +210,16 @@ def do_train():
         train(
             epoch, model, tokenizer, criterion, optimizer, lr_scheduler, metric, train_data_loader, dev_data_loader, config, scaler
         )
+    test_dataset = processor.get_test_dataset()
+    test_data_loader = create_dataloader(
+        test_dataset,
+        mode='train',
+        batch_size=config.batch_size,
+        collate_fn=collate_fn,
+        trans_fn=trans_func
+    )
+    logger.info('start testing ...')
+    evaluate(model, criterion, metric, test_data_loader)
 
 if __name__ == "__main__":
     do_train()
