@@ -1,5 +1,7 @@
 # text classification models
 
+[![Test](https://github.com/bupt-nlp/classification-models/actions/workflows/makefile.yml/badge.svg)](https://github.com/bupt-nlp/classification-models/actions/workflows/makefile.yml) [![Python 3.7](https://img.shields.io/badge/python-3.7+-blue.svg)](https://www.python.org/downloads/release/python-370/) 
+
 Out of box classification models based on PaddlePaddle Deeplearning Freamework.
 
 We will implemented text classification models in one-style code. If you want to cutomize model, all you need is to write your Network, and you can run it.  
