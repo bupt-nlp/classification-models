@@ -1,5 +1,4 @@
-
-import paddle.nn as nn
+"""Simple Classifier: Ernie + Linear"""
 from paddlenlp.transformers.ernie.modeling import ErnieForSequenceClassification, ErnieModel
 from src.config import Config
 
@@ -13,4 +12,3 @@ class SimpleClassifier(ErnieForSequenceClassification):
     def __init__(self, config: SimpleConfig):
         ernie = ErnieModel.from_pretrained(config.pretrained_model)
         super().__init__(ernie, config.num_labels, config.dropout)
-    

@@ -2,12 +2,12 @@ from __future__ import annotations
 from typing import List
 
 from paddle.nn import Layer
-import paddle.nn as nn
+from paddle import nn
 from paddlenlp.seq2vec.encoder import CNNEncoder
 from paddlenlp.transformers.ernie.modeling import ErnieModel
 
 from src.config import Config
-from .utils import get_activation
+from src.models.utils import get_activation
 
 
 class CNNConfig(Config):
@@ -29,7 +29,7 @@ class CNNClassifier(Layer):
         )
         self.dropout = nn.Dropout(p=config.dropout)
 
-        self.fc = nn.Linear(
+        self.classifier = nn.Linear(
             in_features=self.encoder.get_output_dim(),
             out_features=config.num_labels
         )
@@ -37,6 +37,6 @@ class CNNClassifier(Layer):
     def forward(self, input_ids, token_type_ids):
         _, embedding = self.pretrained_model(input_ids=input_ids, token_type_ids=token_type_ids)
         embedding = self.dropout(self.encoder(embedding))
-        logit = self.fc(embedding)
+        logit = self.classifier(embedding)
         return logit
     

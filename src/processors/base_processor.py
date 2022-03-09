@@ -1,11 +1,8 @@
 """Base Data Processors"""
 from __future__ import annotations
-from typing import List, Any
+from typing import List
 
-import numpy as np
 from abc import ABC
-import paddle
-from paddlenlp.transformers.tokenizer_utils import PretrainedTokenizer
 from paddlenlp.datasets import MapDataset, load_dataset
 
 
@@ -22,7 +19,7 @@ class DataProcessor(ABC):
     def get_dev_dataset(self) -> MapDataset:
         raise NotImplementedError
     
-    def get_labels() -> List[str]:
+    def get_labels(self) -> List[str]:
         pass
 
     def get_train_labels(self) -> List[str]:

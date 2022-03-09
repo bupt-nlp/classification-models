@@ -1,16 +1,13 @@
 from __future__ import annotations
-from typing import List, Optional
-from matplotlib.pyplot import axis
+from typing import Optional
 
 import paddle
 from paddle.nn import Layer
-import paddle.nn as nn
+from paddle import nn
 from paddlenlp.seq2vec.encoder import RNNEncoder 
-from paddlenlp.transformers.model_utils import PretrainedModel
 from paddlenlp.transformers.ernie.modeling import ErnieModel
 
 from src.config import Config
-from .utils import get_activation
 
 
 class RNNConfig(Config):
@@ -35,7 +32,7 @@ class RNNClassifier(Layer):
         )
         self.dropout = nn.Dropout(p=config.dropout)
 
-        self.fc = nn.Linear(
+        self.classifier = nn.Linear(
             in_features=self.encoder.get_output_dim(),
             out_features=config.num_labels
         )
@@ -48,6 +45,6 @@ class RNNClassifier(Layer):
         if self.config.reduction == 'mean':
             embedding = paddle.mean(embedding, axis=-1)
 
-        logit = self.fc(embedding)
+        logit = self.classifier(embedding)
         return logit
     

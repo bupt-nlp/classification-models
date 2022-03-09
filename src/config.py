@@ -2,6 +2,7 @@ from tap import Tap
 
 
 class TrainConfigMixin:
+    """Train Config Mixin"""
     batch_size: int = 32                # Batch size per GPU/CPU for training.
     learning_rate: float = 5e-5         # The initial learning rate for Adam.
     weight_decay: float = 0.0           # Weight decay if we apply some.

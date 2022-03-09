@@ -1,6 +1,6 @@
 """Base Data Processors"""
 from __future__ import annotations
-from typing import Dict
+from typing import Dict, Optional
 
 import numpy as np
 import paddle
@@ -12,9 +12,9 @@ from .base_processor import ChnsenticorpDataProcessor, DataProcessor
 
 def convert_example(example: dict,
                     tokenizer: PretrainedTokenizer,
+                    label2idx: Dict[str, int],
                     max_seq_length: int = 512,
-                    mode: str = 'train',
-                    label2idx: Dict[str, int] = {}
+                    mode: str = 'train'
                     ):
     """convert single example to input related data
 

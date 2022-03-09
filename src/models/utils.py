@@ -1,9 +1,6 @@
-from argparse import Action
-from multiprocessing.sharedctypes import Value
-import paddle
+"""Utils for Modeling"""
 from paddle.nn import Layer
-import paddle.nn as nn
-
+from paddle import nn
 
 def get_activation(name: str) -> Layer:
     activations = dict(
