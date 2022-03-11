@@ -1,3 +1,4 @@
+import os
 from tap import Tap
 
 
@@ -24,6 +25,13 @@ class TrainConfigMixin:
     scale_loss: float = 2**15           # The value of scale_loss for fp16.
 
 class Config(Tap, TrainConfigMixin):
+    def __init__(self, file: str = None, **kwargs):
+        if file and os.path.exists(file):
+            file = [file]
+        else:
+            file = None 
+        super().__init__(config_files=file, **kwargs)
+
     """Configuration for Training"""
     pretrained_model: str = 'ernie-1.0'
     save_dir: str = './checkpoint'          # The output directory where the model checkpoints will be written.
