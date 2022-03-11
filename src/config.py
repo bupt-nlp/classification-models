@@ -34,7 +34,7 @@ class Config(Tap, TrainConfigMixin):
 
     """Configuration for Training"""
     pretrained_model: str = 'ernie-1.0'
-    save_dir: str = './checkpoint'          # The output directory where the model checkpoints will be written.
+    output_dir: str = './output'
     task: str = 'clinc150'                  # Dataset for classfication tasks.
     max_seq_length: int = 128               # The maximum total input sequence length after tokenization. Sequences longer than this will be truncated, sequences shorter will be padded.
     num_labels: int = 150                   # the number of labels which can be used in decoder

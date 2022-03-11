@@ -22,3 +22,7 @@ pytest:
 
 .PHONY: test
 test: lint pytest
+
+.PHONY: log 
+log:
+	visualdl --logdir=./output/base

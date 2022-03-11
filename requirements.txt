@@ -4,3 +4,4 @@ loguru
 typed-argument-parser
 numpy
 tqdm
+visualdl

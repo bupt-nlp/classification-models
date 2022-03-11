@@ -9,8 +9,9 @@ import os
 import random
 import time
 import distutils.util
+import shutil
 from collections import defaultdict
-from typing import Callable, Dict, List, Optional
+from typing import Any, Callable, Dict, List, Optional
 from matplotlib.container import ErrorbarContainer
 import numpy as np
 import paddle
@@ -29,6 +30,8 @@ from paddlenlp.datasets import load_dataset, MapDataset
 from paddlenlp.transformers import LinearDecayWithWarmup
 from paddlenlp.transformers.tokenizer_utils import PretrainedTokenizer
 from loguru import logger
+from visualdl import LogWriter
+
 from src.processors import convert_example, create_dataloader, processors_map
 from src.processors.base_processor import DataProcessor
 from src.config import Config
@@ -36,6 +39,7 @@ from tqdm import tqdm
 from src.models.cnn import CNNConfig, CNNClassifier
 from src.models.simple_classifier import SimpleConfig, SimpleClassifier
 from src.models.rnn import RNNConfig, RNNClassifier
+from src.models.utils import num
 from src.data import InputExample, InputFeature, ExampleDataset, extract_and_stack_by_fields
 
 
@@ -44,6 +48,29 @@ def set_seed(seed):
     random.seed(seed)
     np.random.seed(seed)
     paddle.seed(seed)
+
+
+class ContextContainer(dict):
+    
+    def __init__(self) -> None:
+        self.train_step: int = 0
+        self.eval_step: int = 0
+        self.epoch: int = 0
+
+        self.train_acc: float = None
+        self.eval_acc: float = 0
+
+        self.loss = None
+        self.logits = None
+        self.labels = None
+
+        self._cache = defaultdict(int) 
+
+    def __getitem__(self, key):
+        return self._cache[key] 
+
+    def __setitem__(self, key: str, value: Any) -> None:
+        self._cache[key] = value
 
 
 class Trainer:
@@ -98,9 +125,15 @@ class Trainer:
 
         self.criterion = paddle.nn.loss.CrossEntropyLoss()
         self.metric: Metric = paddle.metric.Accuracy()
-        # self.model = paddle.DataParallel(self.model)
 
-        self.context_data = defaultdict(int)
+        self.context_data = ContextContainer()
+        self._init_output_dir()
+        self.writer: LogWriter = LogWriter(logdir=config.output_dir)
+
+    def _init_output_dir(self):
+        if os.path.exists(self.config.output_dir):
+            shutil.rmtree(self.config.output_dir) 
+        os.makedirs(self.config.output_dir)
 
     def collate_fn(self, examples: List[InputExample], label2idx: Dict[str, int]):
         # 1. construct text or text pair dataset
@@ -154,34 +187,45 @@ class Trainer:
             input_ids, token_type_ids, labels = batch
             logits = self.model(input_ids, token_type_ids)
             loss = self.criterion(logits, labels)
-            losses.append(loss.numpy())
+            losses.append(num(loss))
             correct = self.metric.compute(logits, labels)
             self.metric.update(correct)
         accu = self.metric.accumulate()
+        self.context_data.eval_acc = accu
+
         logger.info("eval loss: %.5f, accuracy: %.5f" % (np.mean(losses), accu))
         self.model.train()
         self.metric.reset()
 
-    def _update_bar_info(self, fields: List[str]):
+        self.context_data.eval_step += 1
+        self.writer.add_scalar(tag='eval-acc', value=accu, step=self.context_data.eval_step)
+        self.writer.add_scalar(tag='eval-loss', value=np.sum(losses), step=self.context_data.eval_step)
+
+        if accu > self.context_data.eval_acc:
+            self.context_data.eval_acc = accu
+            logger.success(f'saving the best model ...')
+            best_model_file = os.path.join(self.config.output_dir, 'best.pdparams')
+            paddle.save(self.model.state_dict(), best_model_file)
+
+    def _update_bar_info(self):
         bar_info = []
-        for field in fields:
-            data = self.context_data[field]
-            if paddle.is_tensor(data):
-                data = data.detach().cpu().numpy().item()
-            bar_info.append(f'{field}: {data}')
+        bar_info.append('train-loss: %.4f' % num(self.context_data.loss))
+        bar_info.append('train-acc: %.4f' % self.context_data.train_acc)
+        bar_info.append('eval-acc: %.4f' % self.context_data.eval_acc)
 
         self.train_bar.set_description('\t'.join(bar_info))
 
     def on_batch_end(self):
         # 1. update global step
-        self.context_data['global_steps'] += 1
+        self.context_data.train_step += 1
         self.train_bar.update()
 
         # 2. compute acc on training dataset
-        fields = ['loss', 'train-acc']
-        train_acc = paddle.mean(self.metric.compute(self.context_data['logits'], self.context_data['labels'])).numpy().item()
-        self.context_data['train-acc'] = train_acc
-        self._update_bar_info(fields)
+        train_acc = num(paddle.mean(self.metric.compute(self.context_data.logits, self.context_data.labels)))
+        self.context_data.train_acc = train_acc
+        self.writer.add_scalar('train-loss', step=self.context_data.train_step, value=self.context_data.loss)
+        self.writer.add_scalar('train-acc', step=self.context_data.train_step, value=train_acc)
+        self._update_bar_info()
 
         # 3. step the grad 
         self.optimizer.step()
@@ -189,13 +233,20 @@ class Trainer:
         self.optimizer.clear_grad()
 
         # 4. eval on dev dataset
-        if self.context_data['global_steps'] % self.config.valid_steps == 0:
+        if self.context_data.train_step % self.config.valid_steps == 0:
             self.evalute(self.dev_dataloader)
+        
+        # 5. save checkpoint
+        if self.context_data.train_step % self.config.valid_steps == 0:
+            logger.info(f'saving the model state dict in step: {self.context_data.train_step} ...')
+            last_model_file = os.path.join(self.config.output_dir, 'last.pdparams')
+            paddle.save(self.model.state_dict(), last_model_file)
 
     def on_batch_start(self):
         self.metric.reset()
     
     def train_epoch(self, epoch: int):
+        self.model.train()
         logger.info(f'training epoch<{epoch}> ...')
 
         self.train_bar = tqdm(total=len(self.train_dataloader))
@@ -215,9 +266,9 @@ class Trainer:
 
                 loss = self.criterion(logits, labels)
 
-                self.context_data['logits'] = logits
-                self.context_data['loss'] = loss
-                self.context_data['labels'] = labels
+                self.context_data.logits = logits
+                self.context_data.loss = loss
+                self.context_data.labels = labels
 
             loss.backward()
             self.on_batch_end()
